@@ -1,0 +1,4 @@
+FlashObscure
+============
+
+obscure swf code
