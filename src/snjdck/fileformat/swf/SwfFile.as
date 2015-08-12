@@ -1,11 +1,11 @@
 package snjdck.fileformat.swf
 {
+	import flash.factory.newBuffer;
+	import flash.utils.ByteArray;
+	
 	import array.has;
 	import array.insert;
 	import array.pushIfNotHas;
-	
-	import flash.factory.newBuffer;
-	import flash.utils.ByteArray;
 	
 	import snjdck.fileformat.swf.enum.SwfTagType;
 	
@@ -99,12 +99,13 @@ package snjdck.fileformat.swf
 			output.writeBytes(body);
 		}
 		
+		static private const tagToIngore:Array = [SwfTagType.Metadata, SwfTagType.ProductInfo];
 		private function parseTags(bin:ByteArray):void
 		{
 			while(bin.bytesAvailable > 0){
 				var tag:SwfTag = new SwfTag();
 				tag.read(bin);
-				if(has([SwfTagType.Metadata, SwfTagType.ProductInfo], tag.type)){
+				if(has(tagToIngore, tag.type)){
 					continue;
 				}
 				tagList.push(tag);
@@ -118,13 +119,15 @@ package snjdck.fileformat.swf
 				case SwfTagType.FileAttributes:
 					tag.data[0] &= 0xEF;//hasMetadata = false
 					break;
-				case SwfTagType.DoABC:
-					tag.data.readUnsignedInt();//LazyInitializeFlag
-					readString(tag.data);//abc file name
-					abcFileList.push(new AbcFile(tag.data));
-					break;
 				case SwfTagType.SymbolClass:
 					parseSymbolClass(tag.data);
+					break;
+				case SwfTagType.DoABC2:
+					tag.data.readUnsignedInt();//LazyInitializeFlag
+					readString(tag.data);//abc file name
+					//fall through
+				case SwfTagType.DoABC:
+					abcFileList.push(new AbcFile(tag.data));
 					break;
 			}
 		}
