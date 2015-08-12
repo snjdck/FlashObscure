@@ -1,12 +1,15 @@
 package snjdck.fileformat.swf
 {
-	import array.has;
-	import array.pushIfNotHas;
-	
 	import flash.utils.ByteArray;
+	
+	import array.has;
 	
 	import lambda.callTimes;
 	
+	import snjdck.fileformat.abc.Instruction;
+	import snjdck.fileformat.abc.StringSet;
+	import snjdck.fileformat.abc.enum.Constants;
+	import snjdck.fileformat.abc.io.Reader;
 	import snjdck.fileformat.swf.utils.generateVariableName;
 
 	internal class AbcFile
@@ -16,14 +19,16 @@ package snjdck.fileformat.swf
 		private const multiNameList:Array = [null];
 		private const shaokai:Array = [null];
 		
-		private const strIndexWhiteList:Array = [];//需要混淆的str index
-		private const strIndexBlackList:Array = [];//不能混淆的str index
+		public var strIndexWhiteList:StringSet;//需要混淆的str index
+		private var strIndexBlackList:StringSet;//不能混淆的str index
 		
 		private var source:ByteArray;
 		
 		public function AbcFile(bin:ByteArray)
 		{
 			source = bin;
+			strIndexWhiteList = new StringSet(strList);
+			strIndexBlackList = new StringSet(strList);
 			init();
 		}
 		
@@ -54,8 +59,6 @@ package snjdck.fileformat.swf
 			
 			if(source.bytesAvailable > 0){
 				throw new Error("AbcFile not read to end");
-			}else{
-				trace("mix success!");
 			}
 			/*
 			ArrayUtil.Append(aaa, strList);
@@ -72,6 +75,13 @@ package snjdck.fileformat.swf
 				DeCom.file.save(ba);
 			}
 			//*/
+			trace("-------------------str-----------------");
+			/*
+			trace("===================black===============")
+			trace(strIndexBlackList);
+			trace("===================white===============")
+			*/
+			trace(strIndexWhiteList);
 		}
 		/*
 		static public var a:int;
@@ -136,7 +146,7 @@ package snjdck.fileformat.swf
 			readInt();//tagName
 			skip(function():void{
 				readInt();//key
-				addNotParsedStrIndex(readInt(), ".");//value
+				readInt();//value
 			});
 		}
 		
@@ -229,32 +239,36 @@ package snjdck.fileformat.swf
 		
 		private function readInt():uint
 		{
-			var result:uint = 0;
-			var count:int = 0;
-			do{
-				var byte:uint = source.readUnsignedByte();
-				result |= (byte & 0x7F) << (count * 7);
-				++count;
-			}while((byte & 0x80) != 0 && count < 5);
-			return result;
+			return Reader.ReadS32(source);
 		}
 		
-		public function mixCode(symbolNames:Array):void
+		public function collectStr(symbolNames:Array, output:Object):void
 		{
-			for each(var strIndex:uint in strIndexWhiteList){
-				if(!has(symbolNames, strList[strIndex])){
-					mixStr(symbolNames, strIndex);
+			for each(var strIndex:uint in strIndexWhiteList.indexList){
+				var str:String = strList[strIndex];
+				if(!has(symbolNames, str)){
+					output[str] = true;
 				}
 			}
 		}
 		
-		private function mixStr(symbolNames:Array, strIndex:uint):void
+		public function mixCode(symbolNames:Array, nameDict:Object):void
 		{
-			if(pushIfNotHas(strIndexBlackList, strIndex))
+			for(var strIndex:int=0; strIndex<strList.length; ++strIndex){
+				if(!has(symbolNames, strList[strIndex])){
+					mixStr(nameDict, strIndex);
+				}
+			}
+		}
+		
+		private function mixStr(nameDict:Object, strIndex:uint):void
+		{
+//			if(pushIfNotHas(strIndexBlackList, strIndex))
+			if(strIndexBlackList.addIndex(strIndex))
 			{
 				source.position = shaokai[strIndex][0];
 				var nChar:int = shaokai[strIndex][1];
-				source.writeUTFBytes(generateVariableName(nChar, strList, true));
+				source.writeUTFBytes(nameDict[strList[strIndex]]);
 			}
 		}
 		
@@ -265,12 +279,15 @@ package snjdck.fileformat.swf
 			
 			switch(ns[0]){
 				case 0x05://包外类
-					addStrIndexToWhiteList(info[1]);
+//					addStrIndexToWhiteList(info[1]);
+					strIndexWhiteList.addIndex(info[1]);
 					break;
 				case 0x16://public class
 				case 0x17://internal class
-					addStrIndexToWhiteList(ns[1]);
-					addStrIndexToWhiteList(info[1]);
+					strIndexWhiteList.addIndex(ns[1]);
+					strIndexWhiteList.addIndex(info[1]);
+//					addStrIndexToWhiteList(ns[1]);
+//					addStrIndexToWhiteList(info[1]);
 					break;
 			}
 		}
@@ -280,8 +297,8 @@ package snjdck.fileformat.swf
 			var info:Array = multiNameList[nameIndex];
 			var ns:Array = nsList[info[0]];
 			
-			addStrIndexToWhiteList(ns[1]);
-//			addStrIndexToWhiteList(info[1]);
+			strIndexWhiteList.addIndex(ns[1]);
+			strIndexWhiteList.addIndex(info[1]);
 			/*
 			switch(ns[0]){
 				case 0x16://public
@@ -294,233 +311,30 @@ package snjdck.fileformat.swf
 			//*/
 		}
 		
-		private function addStrIndexToWhiteList(strIndex:uint):void
-		{
-			pushIfNotHas(strIndexWhiteList, strIndex);
-		}
-		
-		private function addStrIndexToBlackList(strIndex:uint):void
-		{
-			pushIfNotHas(strIndexBlackList, strIndex);
-		}
-		
-		private function addStrToBlackList(str:String):void
-		{
-			var strIndex:int = strList.indexOf(str);
-			if(strIndex != -1){
-				addStrIndexToBlackList(strIndex);
-			}
-		}
-		
 		private function addNotParsedStrIndex(strIndex:uint, flag:String):void
 		{
 			var str:String = strList[strIndex];
 			var index:int = str.lastIndexOf(flag);
 			if(index != -1){
-				addStrToBlackList(str.slice(0, index));
-				addStrToBlackList(str.slice(index+1));
+				strIndexBlackList.addStr(str.slice(0, index));
+				strIndexBlackList.addStr(str.slice(index+1));
 			}
-			addStrIndexToBlackList(strIndex);
+			strIndexBlackList.addIndex(strIndex);
 		}
 		
 		private function readInstructionInfo(endPos:int):void
 		{
-			const opcode:int = source.readUnsignedByte();
-			switch(opcode){
-				case 0x2c://pushstring
-					addStrIndexToBlackList(readInt());
-					break;
-				case 0x00:case 0x01:case 0x02://nop
-				case 0x03://throw
-				case 0x07://dxnslate
-				case 0x09://label
-				case 0x0a:case 0x0b:
-				case 0x1c://pushwith
-				case 0x1d://popscope
-				case 0x1e://nextname
-				case 0x1f://hasnext
-				case 0x20://pushnull
-				case 0x21://pushundefined
-				case 0x23://nextvalue
-				case 0x26://pushtrue
-				case 0x27://pushfalse
-				case 0x28://pushnan
-				case 0x29://pop
-				case 0x2a://dup
-				case 0x2b://swap
-				case 0x30://pushscope
-				case 0x35://if64
-				case 0x36://li16
-				case 0x37://li32
-				case 0x38://if32
-				case 0x3a://si8
-				case 0x3b://si16
-				case 0x3c://si32
-				case 0x3d://sf32
-				case 0x47://returnvoid
-				case 0x48://returnvalue
-				case 0x50://sxi_1
-				case 0x51://sxi_8
-				case 0x52://sxi_16
-				case 0x57://newactivation
-				case 0x5a://newcatch
-				case 0x64://getglobalscope
-				case 0x6a://deleteproperty
-				case 0x70://convert_s
-				case 0x71://esc_xelem
-				case 0x72://esc_xattr
-				case 0x73://convert_i
-				case 0x74://convert_u
-				case 0x75://convert_d
-				case 0x76://convert_b
-				case 0x77://convert_o
-				case 0x78://checkfilter
-				case 0x82://coerce_a
-				case 0x83://coerce_i
-				case 0x84://coerce_d
-				case 0x85://coerce_s
-				case 0x87://astypelate
-				case 0x90://negate
-				case 0x91://increment
-				case 0x93://decrement
-				case 0x95://typeof
-				case 0x96://not
-				case 0x97://bitnot
-				case 0xa0://add
-				case 0xa1://subtract
-				case 0xa2://multiply
-				case 0xa3://divide
-				case 0xa4://modulo
-				case 0xa5://lshift
-				case 0xa6://rshift
-				case 0xa7://urshift
-				case 0xa8://bitand
-				case 0xa9://bitor
-				case 0xaa://bitxor
-				case 0xab://equals
-				case 0xac://strictequals
-				case 0xad://lessthan
-				case 0xae://lessequals
-				case 0xaf://greaterequals
-				case 0xb0://greaterthan
-				case 0xb1://instanceof
-				case 0xb3://istypelate
-				case 0xb4://in
-				case 0xc0://increment_i
-				case 0xc1://decrement_i
-				case 0xc4://negate_i
-				case 0xc5://add_i
-				case 0xc7://multiply_i
-				case 0xc6://subtract_i
-				case 0xd0://getlocal_0
-				case 0xd1://getlocal_1
-				case 0xd2://getlocal_2
-				case 0xd3://getlocal_3
-				case 0xd4://set local 0
-				case 0xd5://set local 1
-				case 0xd6://set local 2
-				case 0xd7://set local 3
-					break;
-				case 0x04://getsuper
-				case 0x05://setsuper
-				case 0x06://dxns
-				case 0x08://kill
-				case 0x25://pushshort
-				case 0x2d://pushint
-				case 0x2e://pushuint
-				case 0x2f://pushdouble
-				case 0x31://pushnamespace
-				case 0x40://newfunction
-				case 0x41://call
-				case 0x42://construct
-				case 0x49://constructsuper
-				case 0x53://applytype
-				case 0x55://newobject
-				case 0x56://newarray
-				case 0x58://newclass
-				case 0x59://getdescendants
-				case 0x5d://findpropstrict
-				case 0x5e://findproperty
-				case 0x5f:
-				case 0x60://getlex
-				case 0x61://setproperty
-				case 0x62://getlocal
-				case 0x63://setlocal
-				case 0x65://getscopeobject
-				case 0x66://getproperty
-				case 0x68://initproperty
-				case 0x6c://getslot
-				case 0x6e://getglobalslot
-				case 0x6d://setslot
-				case 0x6f://setglobalslot
-				case 0x80://coerce
-				case 0x86://astype
-				case 0x92://inclocal
-				case 0x94://declocal
-				case 0xb2://istype
-				case 0xc2://inclocal_i
-				case 0xc3://declocal_i
-				case 0xf0://debugline
-				case 0xf1://debugfile
-				case 0xf2:
-					readInt();
-					break;
-				case 0x43://callmethod
-				case 0x44://callstatic
-				case 0x45://callsuper
-				case 0x46://callproperty
-				case 0x4a://constructprop
-				case 0x4c://callproplex
-				case 0x4e://callsupervoid
-				case 0x4f://callpropvoid
-					readInt();
-					readInt();
-					break;
-				case 0xef://debug
-					source.readUnsignedByte();
-					readInt();
-					source.readUnsignedByte();
-					readInt();
-					break;
-				case 0x32://hasnext2
-					source.readUnsignedInt();
-					source.readUnsignedInt();
-					break;
-				case 0x0c://ifnlt
-				case 0x0d://ifnle
-				case 0x0e://ifngt
-				case 0x0f://ifnge
-				case 0x10://jump
-				case 0x11://iftrue
-				case 0x12://iffalse
-				case 0x13://ifeq
-				case 0x14://ifne
-				case 0x15://iflt
-				case 0x16://ifle
-				case 0x17://ifgt
-				case 0x18://ifge
-				case 0x19://ifstricteq
-				case 0x1a://ifstrictne
-					source.position += 3;//read sign 24
-					break;
-				case 0x1b://lookupswitch
-					source.position += 3;//read sign 24
-					var count:uint = readInt();
-					source.position += (count + 1) * 3;
-					break;
-				case 0x24://pushbyte
-					source.readUnsignedByte();
-					break;
-//				case 0xd8://未知opcode
-//source.position = endPos;
-					break;
-				default:
-					trace("opcode not handled! 0x"+opcode.toString(16));
+			var list:Vector.<Instruction> = new Vector.<Instruction>();
+			while(source.position < endPos){
+				var instruction:Instruction = new Instruction();
+				instruction.read(source);
+				list.push(instruction);
+				if(instruction.opcode == Constants.OP_pushstring){
+					strIndexBlackList.addIndex(instruction.getImmAt(0));
+				}
 			}
-			if(source.position < endPos){
-				readInstructionInfo(endPos);
-			}else if(source.position > endPos){
-				trace("error occur");
+			if(source.position != endPos){
+				throw new Error("parse Instruction error");
 				source.position = endPos;
 			}
 		}

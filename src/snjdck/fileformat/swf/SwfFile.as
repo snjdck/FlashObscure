@@ -7,7 +7,11 @@ package snjdck.fileformat.swf
 	import array.insert;
 	import array.pushIfNotHas;
 	
+	import dict.getKeys;
+	import dict.toArray;
+	
 	import snjdck.fileformat.swf.enum.SwfTagType;
+	import snjdck.fileformat.swf.utils.generateVariableName;
 	
 	import stream.readString;
 
@@ -149,9 +153,19 @@ package snjdck.fileformat.swf
 		
 		public function mixCode():void
 		{
-			for each(var abcFile:AbcFile in abcFileList){
-				abcFile.mixCode(symbolNames);
+			var dic:Object = {};
+			var abcFile:AbcFile;
+			for each(abcFile in abcFileList){
+				abcFile.collectStr(symbolNames, dic);
 			}
+			for(var key:String in dic){
+				dic[key] = generateVariableName(key.length, [], true);
+			}
+			for each(abcFile in abcFileList){
+				abcFile.mixCode(symbolNames, dic);
+			}
+			trace("-----------");
+			trace(dict.toArray(dic).join("\n"));
 		}
 		
 		public function addTelemetryTag():void
