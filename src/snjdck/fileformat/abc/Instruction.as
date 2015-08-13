@@ -32,6 +32,7 @@ package snjdck.fileformat.abc
 		{
 			offset = source.position;
 			opcode = source.readUnsignedByte();
+			imms.length = 0;
 			
 			if(Constants.singleU32Imm.indexOf(opcode) >= 0) {
 				addImm(Reader.ReadS32(source));

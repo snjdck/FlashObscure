@@ -23,5 +23,39 @@ package snjdck.fileformat.abc.io
 			result |= data.readByte() << 16;
 			return result;
 		}
+		
+		private var data:ByteArray;
+		
+		public function Reader(data:ByteArray)
+		{
+			this.data = data;
+		}
+		
+		public function readS32():int
+		{
+			return ReadS32(data);
+		}
+		
+		public function readS24():int
+		{
+			return ReadS24(data);
+		}
+		
+		public function readDouble():Number
+		{
+			return data.readDouble();
+		}
+		
+		public function readDefaultParam():void
+		{
+			readS32();//值在常量池中的索引
+			data.readUnsignedByte();//值类型
+		}
+		
+		public function readTwoS32():void
+		{
+			readS32();
+			readS32();
+		}
 	}
 }

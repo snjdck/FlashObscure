@@ -2,7 +2,7 @@ package snjdck.fileformat.swf
 {
 	import flash.utils.ByteArray;
 	
-	import array.has;
+	import array.pushIfNotHas;
 	
 	import lambda.callTimes;
 	
@@ -10,7 +10,6 @@ package snjdck.fileformat.swf
 	import snjdck.fileformat.abc.StringSet;
 	import snjdck.fileformat.abc.enum.Constants;
 	import snjdck.fileformat.abc.io.Reader;
-	import snjdck.fileformat.swf.utils.generateVariableName;
 
 	internal class AbcFile
 	{
@@ -19,14 +18,16 @@ package snjdck.fileformat.swf
 		private const multiNameList:Array = [null];
 		private const shaokai:Array = [null];
 		
-		public var strIndexWhiteList:StringSet;//需要混淆的str index
+		private var strIndexWhiteList:StringSet;//需要混淆的str index
 		private var strIndexBlackList:StringSet;//不能混淆的str index
 		
 		private var source:ByteArray;
+		private var reader:Reader;
 		
 		public function AbcFile(bin:ByteArray)
 		{
 			source = bin;
+			reader = new Reader(bin);
 			strIndexWhiteList = new StringSet(strList);
 			strIndexBlackList = new StringSet(strList);
 			init();
@@ -38,9 +39,7 @@ package snjdck.fileformat.swf
 			
 			skip(readInt, 1);//int
 			skip(readInt, 1);//uint
-			skip(function():void{
-				source.position += 8;
-			}, 1);//double
+			skip(reader.readDouble, 1);//double
 			skip(readString, 1);//string
 			skip(function():void{
 				nsList.push([source.readUnsignedByte(), readInt()]);
@@ -75,18 +74,8 @@ package snjdck.fileformat.swf
 				DeCom.file.save(ba);
 			}
 			//*/
-			trace("-------------------str-----------------");
-			/*
-			trace("===================black===============")
-			trace(strIndexBlackList);
-			trace("===================white===============")
-			*/
-			trace(strIndexWhiteList);
 		}
-		/*
-		static public var a:int;
-		static public var aaa:Array = [];
-		//*/
+		
 		private function readString():void
 		{
 			var numChar:uint = readInt();
@@ -130,13 +119,10 @@ package snjdck.fileformat.swf
 			callTimes(param_count, readInt);//paramType
 			readInt();//name
 			const flags:uint = source.readUnsignedByte();
-			if(flags & 0x08){//参数默认值
-				skip(function():void{
-					readInt();//值在常量池中的索引
-					source.readUnsignedByte();//值类型
-				});
+			if(flags & Constants.HAS_OPTIONAL){//参数默认值
+				skip(reader.readDefaultParam);
 			}
-			if(flags & 0x80){//参数名称
+			if(flags & Constants.HAS_ParamNames){//参数名称
 				callTimes(param_count, readInt);
 			}
 		}
@@ -144,10 +130,7 @@ package snjdck.fileformat.swf
 		private function readMetadataInfo():void
 		{
 			readInt();//tagName
-			skip(function():void{
-				readInt();//key
-				readInt();//value
-			});
+			skip(reader.readTwoS32);//key,value
 		}
 		
 		private function readInstanceInfo():void
@@ -242,34 +225,38 @@ package snjdck.fileformat.swf
 			return Reader.ReadS32(source);
 		}
 		
-		public function collectStr(symbolNames:Array, output:Object):void
+		public function collect(all:Array, white:Array, black:Array):void
 		{
-			for each(var strIndex:uint in strIndexWhiteList.indexList){
+			var strIndex:uint;
+			var str:String;
+			for each(str in strList){
+				pushIfNotHas(all, str);
+			}
+			for each(strIndex in strIndexWhiteList.indexList){
+				pushIfNotHas(white, strList[strIndex]);
+			}
+			for each(strIndex in strIndexBlackList.indexList){
+				pushIfNotHas(black, strList[strIndex]);
+			}
+		}
+		
+		public function mixCode(nameDict:Object):void
+		{
+			var count:int = strList.length;
+			for(var strIndex:int=0; strIndex<count; ++strIndex){
 				var str:String = strList[strIndex];
-				if(!has(symbolNames, str)){
-					output[str] = true;
+				var mixedStr:String = nameDict[str];
+				if(mixedStr != null){
+					mixStr(strIndex, mixedStr);
 				}
 			}
 		}
 		
-		public function mixCode(symbolNames:Array, nameDict:Object):void
+		private function mixStr(strIndex:uint, mixedStr:String):void
 		{
-			for(var strIndex:int=0; strIndex<strList.length; ++strIndex){
-				if(!has(symbolNames, strList[strIndex])){
-					mixStr(nameDict, strIndex);
-				}
-			}
-		}
-		
-		private function mixStr(nameDict:Object, strIndex:uint):void
-		{
-//			if(pushIfNotHas(strIndexBlackList, strIndex))
-			if(strIndexBlackList.addIndex(strIndex))
-			{
-				source.position = shaokai[strIndex][0];
-				var nChar:int = shaokai[strIndex][1];
-				source.writeUTFBytes(nameDict[strList[strIndex]]);
-			}
+			source.position = shaokai[strIndex][0];
+			//var nChar:int = shaokai[strIndex][1];
+			source.writeUTFBytes(mixedStr);
 		}
 		
 		private function addClassName(nameIndex:int):void
@@ -279,15 +266,12 @@ package snjdck.fileformat.swf
 			
 			switch(ns[0]){
 				case 0x05://包外类
-//					addStrIndexToWhiteList(info[1]);
 					strIndexWhiteList.addIndex(info[1]);
 					break;
 				case 0x16://public class
 				case 0x17://internal class
 					strIndexWhiteList.addIndex(ns[1]);
 					strIndexWhiteList.addIndex(info[1]);
-//					addStrIndexToWhiteList(ns[1]);
-//					addStrIndexToWhiteList(info[1]);
 					break;
 			}
 		}
@@ -324,11 +308,9 @@ package snjdck.fileformat.swf
 		
 		private function readInstructionInfo(endPos:int):void
 		{
-			var list:Vector.<Instruction> = new Vector.<Instruction>();
+			var instruction:Instruction = new Instruction();
 			while(source.position < endPos){
-				var instruction:Instruction = new Instruction();
 				instruction.read(source);
-				list.push(instruction);
 				if(instruction.opcode == Constants.OP_pushstring){
 					strIndexBlackList.addIndex(instruction.getImmAt(0));
 				}

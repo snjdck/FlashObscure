@@ -23,7 +23,7 @@ package snjdck.fileformat.abc
 		
 		public function addIndex(index:int):Boolean
 		{
-			return pushIfNotHas(indexList, index);
+			return Boolean(ref[index]) && pushIfNotHas(indexList, index);
 		}
 		
 		public function toString():String

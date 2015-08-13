@@ -38,7 +38,7 @@ package
 			swf.read(file.data);
 			
 			swf.mixCode();
-			swf.addTelemetryTag();
+//			swf.addTelemetryTag();
 			
 			var t:ByteArray = newBuffer();
 			swf.write(t);

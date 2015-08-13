@@ -7,7 +7,6 @@ package snjdck.fileformat.swf
 	import array.insert;
 	import array.pushIfNotHas;
 	
-	import dict.getKeys;
 	import dict.toArray;
 	
 	import snjdck.fileformat.swf.enum.SwfTagType;
@@ -31,7 +30,6 @@ package snjdck.fileformat.swf
 		static private const KeyWords:Array = InitKeyWords(new CLS_KEYWORDS());
 		
 		private var isCompressed:Boolean;
-		private var sign:String;
 		private var version:uint;
 		private var bodyHead:ByteArray;
 		
@@ -47,7 +45,7 @@ package snjdck.fileformat.swf
 		
 		public function read(file:ByteArray):void
 		{
-			sign = file.readUTFBytes(3);
+			var sign:String = file.readUTFBytes(3);
 			version = file.readUnsignedByte();
 			const fileSize:uint = file.readUnsignedInt();//解压后大小,包含头部8字节
 			
@@ -94,7 +92,7 @@ package snjdck.fileformat.swf
 				tag.write(body);
 			}
 			
-			output.writeUTFBytes(sign);
+			output.writeUTFBytes(isCompressed ? "CWS" : "FWS");
 			output.writeByte(version);
 			output.writeUnsignedInt(body.length + 8);
 			if(isCompressed){
@@ -103,16 +101,11 @@ package snjdck.fileformat.swf
 			output.writeBytes(body);
 		}
 		
-		static private const tagToIngore:Array = [SwfTagType.Metadata, SwfTagType.ProductInfo];
 		private function parseTags(bin:ByteArray):void
 		{
 			while(bin.bytesAvailable > 0){
 				var tag:SwfTag = new SwfTag();
 				tag.read(bin);
-				if(has(tagToIngore, tag.type)){
-					continue;
-				}
-				tagList.push(tag);
 				parseTag(tag);
 			}
 		}
@@ -120,6 +113,10 @@ package snjdck.fileformat.swf
 		private function parseTag(tag:SwfTag):void
 		{
 			switch(tag.type){
+				case SwfTagType.Metadata:
+				case SwfTagType.ProductInfo:
+					//ignore
+					return;
 				case SwfTagType.FileAttributes:
 					tag.data[0] &= 0xEF;//hasMetadata = false
 					break;
@@ -134,6 +131,7 @@ package snjdck.fileformat.swf
 					abcFileList.push(new AbcFile(tag.data));
 					break;
 			}
+			tagList.push(tag);
 		}
 		
 		private function parseSymbolClass(source:ByteArray):void
@@ -155,16 +153,61 @@ package snjdck.fileformat.swf
 		{
 			var dic:Object = {};
 			var abcFile:AbcFile;
+			
+			var strList:Array = [];
+			var whiteList:Array = [];
+			var blackList:Array = [];
+			
 			for each(abcFile in abcFileList){
-				abcFile.collectStr(symbolNames, dic);
+				abcFile.collect(strList, whiteList, blackList);
 			}
+			
+			var finalList:Array = array.sub(whiteList, blackList);
+			finalList = array.sub(finalList, symbolNames);
+			var mixList:Array = [];
+			
+			for each(var str:String in finalList){
+				var index:int = str.lastIndexOf(":");
+				if(index >= 0){
+					var a:String = str.slice(0, index);
+					var b:String = str.slice(index+1);
+					var hasA:Boolean = array.has(finalList, a);
+					var hasB:Boolean = array.has(finalList, b);
+					if(hasA || hasB){
+						dic[str] = [a, b];
+					}
+					continue;
+				}
+				var mixStr:String = generateVariableName(str.length, mixList, true);
+				mixList.push(mixStr);
+				dic[str] = mixStr;
+			}
+			
 			for(var key:String in dic){
-				dic[key] = generateVariableName(key.length, [], true);
+				if(dic[key] is String){
+					continue;
+				}
+				a = dic[key][0];
+				b = dic[key][1];
+				if(a in dic){
+					a = dic[a];
+				}
+				if(b in dic){
+					b = dic[b];
+				}
+				dic[key] = a+":"+b;
 			}
+			
 			for each(abcFile in abcFileList){
-				abcFile.mixCode(symbolNames, dic);
+				abcFile.mixCode(dic);
 			}
-			trace("-----------");
+			trace("---blackList------",blackList.length);
+			trace(blackList.join("\n"));
+			trace("---whiteList------",whiteList.length);
+			trace(whiteList.join("\n"));
+			trace("---finalList------",finalList.length);
+			trace(finalList.join("\n"));
+			trace("---finalDict------");
 			trace(dict.toArray(dic).join("\n"));
 		}
 		
