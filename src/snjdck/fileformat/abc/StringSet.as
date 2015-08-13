@@ -26,6 +26,11 @@ package snjdck.fileformat.abc
 			return Boolean(ref[index]) && pushIfNotHas(indexList, index);
 		}
 		
+		public function getValue(index:int):String
+		{
+			return ref[index];
+		}
+		
 		public function toString():String
 		{
 			var result:Array = [];

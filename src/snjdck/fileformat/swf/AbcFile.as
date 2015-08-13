@@ -6,7 +6,6 @@ package snjdck.fileformat.swf
 	
 	import lambda.callTimes;
 	
-	import snjdck.fileformat.abc.Instruction;
 	import snjdck.fileformat.abc.StringSet;
 	import snjdck.fileformat.abc.enum.Constants;
 	import snjdck.fileformat.abc.io.Reader;
@@ -27,9 +26,9 @@ package snjdck.fileformat.swf
 		public function AbcFile(bin:ByteArray)
 		{
 			source = bin;
-			reader = new Reader(bin);
 			strIndexWhiteList = new StringSet(strList);
 			strIndexBlackList = new StringSet(strList);
+			reader = new Reader(bin, strIndexBlackList, strIndexWhiteList);
 			init();
 		}
 		
@@ -41,39 +40,18 @@ package snjdck.fileformat.swf
 			skip(readInt, 1);//uint
 			skip(reader.readDouble, 1);//double
 			skip(readString, 1);//string
-			skip(function():void{
-				nsList.push([source.readUnsignedByte(), readInt()]);
-			}, 1);//namespace
-			skip(function():void{
-				skip(readInt);
-			}, 1);//ns_set
+			skip(readNamespace, 1);//namespace
+			skip(reader.readS32List, 1);//ns_set
 			skip(readMultiName, 1);//mulity name
-			skip(readMethodInfo);
-			skip(readMetadataInfo);
-			const clsCount:uint = readInt();
+			skip(reader.readMethodInfo);
+			skip(reader.readMetadataInfo);
+			const clsCount:int = readInt();
 			callTimes(clsCount, readInstanceInfo);
-			callTimes(clsCount, readClassInfo);
-			skip(readScriptInfo);
+			callTimes(clsCount, readMethodIndexAndTrait);//ClassInfo
+			skip(readMethodIndexAndTrait);//ScriptInfo
 			skip(readMethodBodyInfo);
 			
-			if(source.bytesAvailable > 0){
-				throw new Error("AbcFile not read to end");
-			}
-			/*
-			ArrayUtil.Append(aaa, strList);
-			++a;
-			
-			if(a == 393){
-				aaa = ArrayUtil.Unique(aaa);
-				trace(aaa.length);
-				var ba:ByteArray = new ByteArray();
-				for each(var str:String in aaa){
-					ba.writeUTF(str);
-				}
-				ba.compress(CompressionAlgorithm.LZMA);
-				DeCom.file.save(ba);
-			}
-			//*/
+			assert(source.bytesAvailable == 0, "parse abc error!");
 		}
 		
 		private function readString():void
@@ -81,6 +59,11 @@ package snjdck.fileformat.swf
 			var numChar:uint = readInt();
 			shaokai.push([source.position, numChar]);
 			strList.push(source.readUTFBytes(numChar));
+		}
+		
+		private function readNamespace():void
+		{
+			nsList.push([source.readUnsignedByte(), readInt()]);
 		}
 		
 		private function readMultiName():void
@@ -104,7 +87,7 @@ package snjdck.fileformat.swf
 					break;
 				case 0x1D:
 					readInt();
-					skip(readInt);
+					reader.readS32List();
 					break;
 				default:
 					throw new Error("unknow kind!");
@@ -112,72 +95,39 @@ package snjdck.fileformat.swf
 			multiNameList.push(multiName);
 		}
 		
-		private function readMethodInfo():void
+		private function printMultiName(index:int):void
 		{
-			const param_count:uint = readInt();
-			readInt();//return type
-			callTimes(param_count, readInt);//paramType
-			readInt();//name
-			const flags:uint = source.readUnsignedByte();
-			if(flags & Constants.HAS_OPTIONAL){//参数默认值
-				skip(reader.readDefaultParam);
-			}
-			if(flags & Constants.HAS_ParamNames){//参数名称
-				callTimes(param_count, readInt);
-			}
-		}
-		
-		private function readMetadataInfo():void
-		{
-			readInt();//tagName
-			skip(reader.readTwoS32);//key,value
+			var info:Array = multiNameList[index];
+			var ns:Array = nsList[info[0]];
+			
+			trace("++++++++++++++++++++++++++++++++++++++++",ns[0],strIndexBlackList.getValue(ns[1]),strIndexBlackList.getValue(info[1]));
 		}
 		
 		private function readInstanceInfo():void
 		{
-			readInt();//multiNameIndex
-			readInt();//super name
+			addMultiNameToWhiteList(reader.readS32());//class name or interface name
+			reader.readS32();//super multi name
 			if(source.readUnsignedByte() & 0x08){
 				addNotParsedStrIndex(nsList[readInt()][1], ":");//protected namespace
 			}
-			skip(readInt);//接口
-			//This is an index into the method array of the abcFile;
-			//it references the method that is invoked whenever an object of this class is constructed.
-			//This method is sometimes referred to as an instance initializer.
-			readInt();
-			skip(readTraitInfo);
+			reader.readS32List();//接口
+			readMethodIndexAndTrait();
 		}
 		
-		private function readClassInfo():void
+		private function readMethodIndexAndTrait():void
 		{
-			//This is an index into the method array of the abcFile;
-			//it references the method that is invoked when the class is first created.
-			//This method is also known as the static initializer for the class.
-			readInt();
-			skip(readTraitInfo);
-		}
-		
-		private function readScriptInfo():void
-		{
-			//The init field is an index into the method array of the abcFile.
-			//It identifies a function that is to be invoked prior to any other code in this script.
-			readInt();
+			//it can be a instance constructor, class static initializer or script initializer.
+			readInt();//method index
 			skip(readTraitInfo);
 		}
 		
 		private function readMethodBodyInfo():void
 		{
-			//The method field is an index into the method array of the abcFile;
-			//it identifies the method signature with which this body is to be associated.
-			readInt();
+			readInt();//method index
 			callTimes(4, readInt);
-			readInstructionInfo(readInt() + source.position);
-			skip(readExceptionInfo);
+			reader.readInstructionList();
+			skip(reader.readExceptionInfo);
 			skip(readTraitInfo);
-		}
-		
-		private function readExceptionInfo():void{
-			callTimes(5, readInt);
 		}
 		
 		private function readTraitInfo():void
@@ -185,21 +135,21 @@ package snjdck.fileformat.swf
 			const multiNameIndex:uint = readInt();
 			const kind:uint = source.readUnsignedByte();
 			switch(kind & 0xF){
-				case 0: case 6://slot, const
+				case Constants.TRAIT_Slot:
+				case Constants.TRAIT_Const:
 					readInt();//slot_id
 					readInt();//属性类型
 					if(readInt() != 0){
 						source.readUnsignedByte();
 					}
-					addPropName(multiNameIndex);
+					addMultiNameToWhiteList(multiNameIndex);
 					break;
 				case 1: case 5: case 2: case 3://method, function, getter, setter
-					addPropName(multiNameIndex);
+					addMultiNameToWhiteList(multiNameIndex);
 					readInt();
 					readInt();//method array
 					break;
-				case 4://class
-					addClassName(multiNameIndex);
+				case Constants.TRAIT_Class://class
 					readInt();
 					readInt();//class array
 					break;
@@ -208,7 +158,7 @@ package snjdck.fileformat.swf
 			}
 			
 			if(kind & 0x40){
-				skip(readInt);
+				reader.readS32List();
 			}
 		}
 		
@@ -259,40 +209,12 @@ package snjdck.fileformat.swf
 			source.writeUTFBytes(mixedStr);
 		}
 		
-		private function addClassName(nameIndex:int):void
+		private function addMultiNameToWhiteList(nameIndex:int):void
 		{
 			var info:Array = multiNameList[nameIndex];
 			var ns:Array = nsList[info[0]];
-			
-			switch(ns[0]){
-				case 0x05://包外类
-					strIndexWhiteList.addIndex(info[1]);
-					break;
-				case 0x16://public class
-				case 0x17://internal class
-					strIndexWhiteList.addIndex(ns[1]);
-					strIndexWhiteList.addIndex(info[1]);
-					break;
-			}
-		}
-		
-		private function addPropName(nameIndex:int):void
-		{
-			var info:Array = multiNameList[nameIndex];
-			var ns:Array = nsList[info[0]];
-			
 			strIndexWhiteList.addIndex(ns[1]);
 			strIndexWhiteList.addIndex(info[1]);
-			/*
-			switch(ns[0]){
-				case 0x16://public
-				case 0x08://接口,native类方法
-				case 0x17://internal
-				case 0x18://protected
-				case 0x1A://static protected
-				case 0x05://private
-			}
-			//*/
 		}
 		
 		private function addNotParsedStrIndex(strIndex:uint, flag:String):void
@@ -304,21 +226,6 @@ package snjdck.fileformat.swf
 				strIndexBlackList.addStr(str.slice(index+1));
 			}
 			strIndexBlackList.addIndex(strIndex);
-		}
-		
-		private function readInstructionInfo(endPos:int):void
-		{
-			var instruction:Instruction = new Instruction();
-			while(source.position < endPos){
-				instruction.read(source);
-				if(instruction.opcode == Constants.OP_pushstring){
-					strIndexBlackList.addIndex(instruction.getImmAt(0));
-				}
-			}
-			if(source.position != endPos){
-				throw new Error("parse Instruction error");
-				source.position = endPos;
-			}
 		}
 	}
 }

@@ -21,7 +21,7 @@ public static const HAS_ParamNames:int =      0x80
 public static const CONSTANT_Utf8                   :int = 0x01
 public static const CONSTANT_Int                    :int = 0x03
 public static const CONSTANT_UInt                   :int = 0x04
-public static const CONSTANT_PrivateNs          :int = 0x05 // non-shared namespace
+public static const CONSTANT_PrivateNs          :int = 0x05 // non-shared namespace,包外类,private
 public static const CONSTANT_Double             :int = 0x06
 public static const CONSTANT_Qname              :int = 0x07 // o.ns::name, ct ns, ct name
 public static const CONSTANT_Namespace          :int = 0x08
@@ -38,11 +38,11 @@ public static const CONSTANT_RTQnameLA          :int = 0x12 // o.@ns::[name], rt
 public static const CONSTANT_NameL              :int = 0x13 // o.[], ns=public implied, rt name
 public static const CONSTANT_NameLA             :int = 0x14 // o.@[], ns=public implied, rt attr-name
 public static const CONSTANT_NamespaceSet           :int = 0x15
-public static const CONSTANT_PackageNs          :int = 0x16
-public static const CONSTANT_PackageInternalNs  :int = 0x17
-public static const CONSTANT_ProtectedNs            :int = 0x18
+public static const CONSTANT_PackageNs          :int = 0x16;//public
+public static const CONSTANT_PackageInternalNs  :int = 0x17;//internal
+public static const CONSTANT_ProtectedNs            :int = 0x18;//protected
 public static const CONSTANT_StaticProtectedNs  :int = 0x19
-public static const CONSTANT_StaticProtectedNs2 :int = 0x1a
+public static const CONSTANT_StaticProtectedNs2 :int = 0x1a;//static protected
 public static const CONSTANT_MultinameL           :int = 0x1B
 public static const CONSTANT_MultinameLA          :int = 0x1C
 public static const CONSTANT_TypeName             :int = 0x1D
