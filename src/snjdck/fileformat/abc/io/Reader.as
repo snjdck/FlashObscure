@@ -55,16 +55,6 @@ package snjdck.fileformat.abc.io
 		{
 			return data.readDouble();
 		}
-		/*
-		public function readTwoS32():void
-		{
-			readS32();
-			readS32();
-		}
-		*/
-		public function readExceptionInfo():void{
-			callTimes(5, readS32);
-		}
 		
 		public function readMetadataInfo():void
 		{
@@ -83,10 +73,7 @@ package snjdck.fileformat.abc.io
 			const param_count:int = readS32();
 			readS32();//return type
 			callTimes(param_count, readS32);//paramType
-			var nameIndex:int = readS32();
-			if(nameIndex > 0){
-				whiteSet.addIndex(nameIndex);
-			}
+			readS32();//name index
 			const flags:uint = data.readUnsignedByte();
 			if(flags & Constants.HAS_OPTIONAL){//参数默认值
 				repeatCall(readDefaultParam);

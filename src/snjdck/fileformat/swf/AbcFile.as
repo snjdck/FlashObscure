@@ -36,8 +36,8 @@ package snjdck.fileformat.swf
 		{
 			source.position += 4;//version
 			
-			skip(readInt, 1);//int
-			skip(readInt, 1);//uint
+			skip(reader.readS32, 1);//int
+			skip(reader.readS32, 1);//uint
 			skip(reader.readDouble, 1);//double
 			skip(readString, 1);//string
 			skip(readNamespace, 1);//namespace
@@ -45,10 +45,14 @@ package snjdck.fileformat.swf
 			skip(readMultiName, 1);//mulity name
 			skip(reader.readMethodInfo);
 			skip(reader.readMetadataInfo);
-			const clsCount:int = readInt();
+			const clsCount:int = reader.readS32();
+			trace("---------readInstanceInfo");
 			callTimes(clsCount, readInstanceInfo);
+			trace("---------readClassInfo");
 			callTimes(clsCount, readMethodIndexAndTrait);//ClassInfo
+			trace("---------readScriptInfo");
 			skip(readMethodIndexAndTrait);//ScriptInfo
+			trace("---------readMethodBodyInfo");
 			skip(readMethodBodyInfo);
 			
 			assert(source.bytesAvailable == 0, "parse abc error!");
@@ -56,41 +60,44 @@ package snjdck.fileformat.swf
 		
 		private function readString():void
 		{
-			var numChar:uint = readInt();
+			var numChar:uint = reader.readS32();
 			shaokai.push([source.position, numChar]);
 			strList.push(source.readUTFBytes(numChar));
 		}
 		
 		private function readNamespace():void
 		{
-			nsList.push([source.readUnsignedByte(), readInt()]);
+			nsList.push([source.readUnsignedByte(), reader.readS32()]);
 		}
 		
 		private function readMultiName():void
 		{
 			var multiName:Array;
 			switch(source.readUnsignedByte()){
-				case 0x07: case 0x0D://ns + name
+				case Constants.CONSTANT_Qname:
+				case Constants.CONSTANT_QnameA://ns + utf_name
 					multiName = [readInt(), readInt()];
 					break;
-				case 0x11: case 0x12:
-					break;
-				case 0x09: case 0x0E://name + ns_set
+				case Constants.CONSTANT_Multiname:
+				case Constants.CONSTANT_MultinameA://utf_name + ns_set
 					readInt();
 					readInt();
 					break;
-				case 0x0F: case 0x10:
-					readInt();//name
+				case Constants.CONSTANT_RTQname:
+				case Constants.CONSTANT_RTQnameA:
+					readInt();//utf_name
 					break;
-				case 0x1B: case 0x1C:
+				case Constants.CONSTANT_MultinameL:
+				case Constants.CONSTANT_MultinameLA:
 					readInt();//ns_set
 					break;
-				case 0x1D:
+				case Constants.CONSTANT_TypeName:
 					readInt();
 					reader.readS32List();
 					break;
-				default:
-					throw new Error("unknow kind!");
+				case Constants.CONSTANT_RTQnameL:
+				case Constants.CONSTANT_RTQnameLA:
+					break;
 			}
 			multiNameList.push(multiName);
 		}
@@ -105,10 +112,10 @@ package snjdck.fileformat.swf
 		
 		private function readInstanceInfo():void
 		{
-			addMultiNameToWhiteList(reader.readS32());//class name or interface name
+			reader.readS32();//class or interface multi name
 			reader.readS32();//super multi name
-			if(source.readUnsignedByte() & 0x08){
-				addNotParsedStrIndex(nsList[readInt()][1], ":");//protected namespace
+			if(source.readUnsignedByte() & Constants.CLASS_FLAG_protected){
+				reader.readS32();//ns index
 			}
 			reader.readS32List();//接口
 			readMethodIndexAndTrait();
@@ -117,54 +124,62 @@ package snjdck.fileformat.swf
 		private function readMethodIndexAndTrait():void
 		{
 			//it can be a instance constructor, class static initializer or script initializer.
-			readInt();//method index
+			reader.readS32();//method index
 			skip(readTraitInfo);
 		}
 		
 		private function readMethodBodyInfo():void
 		{
-			readInt();//method index
-			callTimes(4, readInt);
+			callTimes(5, reader.readS32);
 			reader.readInstructionList();
-			skip(reader.readExceptionInfo);
+			skip(readExceptionInfo);
 			skip(readTraitInfo);
+		}
+		
+		private function readExceptionInfo():void{
+			callTimes(4, reader.readS32);
+			addMultiNameToWhiteList(reader.readS32());
 		}
 		
 		private function readTraitInfo():void
 		{
 			const multiNameIndex:uint = readInt();
 			const kind:uint = source.readUnsignedByte();
+			
 			switch(kind & 0xF){
 				case Constants.TRAIT_Slot:
 				case Constants.TRAIT_Const:
-					readInt();//slot_id
-					readInt();//属性类型
-					if(readInt() != 0){
-						source.readUnsignedByte();
+					reader.readS32();//slot_id
+					reader.readS32();//属性类型
+					var valueIndex:int = reader.readS32();
+					if(valueIndex != 0){
+						var valueType:int = source.readUnsignedByte();
+						if(valueType == Constants.CONSTANT_Utf8){
+							strIndexBlackList.addIndex(valueIndex);
+						}
 					}
-					addMultiNameToWhiteList(multiNameIndex);
 					break;
-				case 1: case 5: case 2: case 3://method, function, getter, setter
-					addMultiNameToWhiteList(multiNameIndex);
-					readInt();
-					readInt();//method array
+				case Constants.TRAIT_Method:
+				case Constants.TRAIT_Getter:
+				case Constants.TRAIT_Setter:
+				case Constants.TRAIT_Function:
+				case Constants.TRAIT_Class:
+					reader.readS32();
+					reader.readS32();
 					break;
-				case Constants.TRAIT_Class://class
-					readInt();
-					readInt();//class array
-					break;
-				default:
-					throw new Error("kind error!");
 			}
+			addMultiNameToWhiteList(multiNameIndex);
+//			printMultiName(multiNameIndex);
+//			trace(kind & 0xf, "***************************************************");
 			
-			if(kind & 0x40){
+			if((kind >> 4) & Constants.ATTR_metadata){
 				reader.readS32List();
 			}
 		}
 		
 		private function skip(handler:Function, flag:int=0):void
 		{
-			var count:uint = readInt();
+			var count:uint = reader.readS32();
 			while(count-- > flag){
 				handler();
 			}
@@ -172,7 +187,7 @@ package snjdck.fileformat.swf
 		
 		private function readInt():uint
 		{
-			return Reader.ReadS32(source);
+			return reader.readS32();
 		}
 		
 		public function collect(all:Array, white:Array, black:Array):void
