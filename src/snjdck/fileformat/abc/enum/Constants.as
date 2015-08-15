@@ -14,8 +14,8 @@ public static const NEED_ACTIVATION:int =   0x02
 public static const NEED_REST:int =             0x04
 public static const HAS_OPTIONAL:int =      0x08
 public static const IGNORE_REST:int =       0x10
-public static const SET_DXNS:int =          0x40
 public static const NATIVE:int =                0x20
+public static const SET_DXNS:int =          0x40
 public static const HAS_ParamNames:int =      0x80
 
 public static const CONSTANT_Utf8                   :int = 0x01
@@ -46,7 +46,7 @@ public static const CONSTANT_StaticProtectedNs2 :int = 0x1a;//static protected
 public static const CONSTANT_MultinameL           :int = 0x1B
 public static const CONSTANT_MultinameLA          :int = 0x1C
 public static const CONSTANT_TypeName             :int = 0x1D
-
+/*
 public static const constantKinds:Array = [ "0", "utf8", "2",
 "int", "uint", "private", "double", "qname", "namespace",
 "multiname", "false", "true", "null", "@qname", "@multiname", "rtqname",
@@ -54,7 +54,7 @@ public static const constantKinds:Array = [ "0", "utf8", "2",
 "packageinternalns", "protectedns", "staticprotectedns", "staticprotectedns2",
 "multinameL", "multinameLA", "typename"
 ]
-
+*/
 public static const TRAIT_Slot      :int = 0x00
 public static const TRAIT_Method        :int = 0x01
 public static const TRAIT_Getter        :int = 0x02
@@ -62,11 +62,11 @@ public static const TRAIT_Setter        :int = 0x03
 public static const TRAIT_Class     :int = 0x04
 public static const TRAIT_Function  :int = 0x05
 public static const TRAIT_Const     :int = 0x06
-
+/*
 public static const traitKinds:Array = [
 "var", "function", "function get", "function set", "class", "function", "const"
 ]
-
+*/
 public static const OP_bkpt:int = 0x01
 public static const OP_nop:int = 0x02
 public static const OP_throw:int = 0x03
@@ -241,7 +241,7 @@ public static const OP_debugline:int = 0xF0
 public static const OP_debugfile:int = 0xF1
 public static const OP_bkptline:int = 0xF2
 public static const OP_timestamp:int = 0xF3
-
+/*
 public static const opNames : Array = [
 "OP_0x00       ",
 "bkpt          ",
@@ -509,6 +509,7 @@ public static const ATTR_public           :int = 0x08; // 1=add public namespace
 public static const CLASS_FLAG_sealed       :int = 0x01;
 public static const CLASS_FLAG_final        :int = 0x02;
 public static const CLASS_FLAG_interface    :int = 0x04;
+//*/
 public static const CLASS_FLAG_protected    :int = 0x08;
 
 
@@ -537,12 +538,6 @@ public static const hasName : Array = [ OP_getsuper, OP_setsuper, OP_callsuper, 
   OP_constructprop, OP_callsupervoid, OP_callpropvoid, OP_getdescendants, OP_findpropstrict, OP_findproperty,
   OP_finddef, OP_getlex, OP_setproperty, OP_getproperty, OP_initproperty, OP_deleteproperty, OP_coerce,
   OP_astype, OP_istype ]
-  
-public static const firstVersion : int = 660;
-  
-public static const versionStrings : Array = [ "9", "air1", "10", "air1.5", "air1.5.1",
-                              "10.0.32", "air1.5.2", "10.1", "air2",
-                              "fpsys", "airsys"]
 
 }
 }

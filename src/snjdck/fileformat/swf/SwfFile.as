@@ -5,11 +5,12 @@ package snjdck.fileformat.swf
 	
 	import array.has;
 	import array.insert;
+	import array.or;
 	import array.pushIfNotHas;
-	
-	import dict.toArray;
+	import array.sub;
 	
 	import snjdck.fileformat.swf.enum.SwfTagType;
+	import snjdck.fileformat.swf.utils.RawDict;
 	import snjdck.fileformat.swf.utils.generateVariableName;
 	
 	import stream.readString;
@@ -115,8 +116,11 @@ package snjdck.fileformat.swf
 			switch(tag.type){
 				case SwfTagType.Metadata:
 				case SwfTagType.ProductInfo:
-					//ignore
-					return;
+				case SwfTagType.EnableDebugger:
+				case SwfTagType.EnableDebugger2:
+				case SwfTagType.DebugID:
+				case SwfTagType.Protect:
+					return;//ignore
 				case SwfTagType.FileAttributes:
 					tag.data[0] &= 0xEF;//hasMetadata = false
 					break;
@@ -151,7 +155,7 @@ package snjdck.fileformat.swf
 		
 		public function mixCode():void
 		{
-			var dic:Object = {};
+			var rawDict:RawDict = new RawDict();
 			var abcFile:AbcFile;
 			
 			var strList:Array = [];
@@ -164,7 +168,7 @@ package snjdck.fileformat.swf
 			
 			var finalList:Array = array.sub(whiteList, blackList);
 			finalList = array.sub(finalList, symbolNames);
-			var mixList:Array = [];
+			var mixList:Array = array.or(strList, symbolNames);
 			
 			for each(var str:String in finalList){
 				var index:int = str.lastIndexOf(":");
@@ -174,32 +178,18 @@ package snjdck.fileformat.swf
 					var hasA:Boolean = array.has(finalList, a);
 					var hasB:Boolean = array.has(finalList, b);
 					if(hasA || hasB){
-						dic[str] = [a, b];
+						rawDict.addData(str, [a, b]);
 					}
 					continue;
 				}
 				var mixStr:String = generateVariableName(str.length, mixList, true);
-				mixList.push(mixStr);
-				dic[str] = mixStr;
+				rawDict.addData(str, mixStr);
 			}
 			
-			for(var key:String in dic){
-				if(dic[key] is String){
-					continue;
-				}
-				a = dic[key][0];
-				b = dic[key][1];
-				if(a in dic){
-					a = dic[a];
-				}
-				if(b in dic){
-					b = dic[b];
-				}
-				dic[key] = a+":"+b;
-			}
+			rawDict.mixPackage();
 			
 			for each(abcFile in abcFileList){
-				abcFile.mixCode(dic);
+				abcFile.mixCode(rawDict);
 			}
 			trace("---blackList------",blackList.length);
 			trace(blackList.join("\n"));
@@ -208,9 +198,18 @@ package snjdck.fileformat.swf
 			trace("---finalList------",finalList.length);
 			trace(finalList.join("\n"));
 			trace("---finalDict------");
-			trace(dict.toArray(dic).join("\n"));
+			trace(rawDict);
 		}
 		
+		private function isFullClassName(clsName:String):Boolean
+		{
+			var index:int = clsName.lastIndexOf(":");
+			if(index < 0){
+				return false;
+			}
+			return true;
+		}
+		/*
 		public function addTelemetryTag():void
 		{
 			const index:int = getTagIndex(SwfTagType.FileAttributes);
@@ -236,5 +235,6 @@ package snjdck.fileformat.swf
 			}
 			return -1;
 		}
+		//*/
 	}
 }

@@ -7,7 +7,11 @@ package snjdck.fileformat.abc.io
 	import snjdck.fileformat.abc.Instruction;
 	import snjdck.fileformat.abc.StringSet;
 	import snjdck.fileformat.abc.enum.Constants;
-
+	
+	/**
+	 * black:metadata, function arg default value, pushstring
+	 * white:function arg name
+	 */
 	final public class Reader
 	{
 		static public function ReadS32(data:ByteArray):int
@@ -87,10 +91,8 @@ package snjdck.fileformat.abc.io
 		{
 			var index:int = readS32();//值在常量池中的索引
 			var valueType:int = data.readUnsignedByte();
-			switch(valueType){
-				case Constants.CONSTANT_Utf8:
-					blackSet.addIndex(index);
-					break;
+			if(valueType == Constants.CONSTANT_Utf8){
+				blackSet.addIndex(index);
 			}
 		}
 		
