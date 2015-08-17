@@ -42,36 +42,44 @@ package snjdck.fileformat.swf.utils
 			--count;
 		}
 		
-		public function mixStr():void
+		public function mixStr(strList:Array, usedNameList:Array):void
 		{
-			
+			for each(var str:String in strList){
+				var index:int = str.lastIndexOf(":");
+				if(index >= 0){
+					addData(str, index);
+				}else{
+					addData(str, VarName.Gen(str.length, usedNameList, true));
+				}
+			}
+			for(var i:int=count-1; i>=0; --i){
+				if(!(valList[i] is String)){
+					replacePackageName(i);
+				}
+			}
 		}
 		
-		public function mixPackage():void
+		private function replacePackageName(i:int):void
 		{
-			for(var i:int=count-1; i>=0; --i){
-				var list:Object = valList[i];
-				if(list is String){
-					continue;
-				}
-				var a:String = list[0];
-				var b:String = list[1];
-				var indexA:int = keyList.indexOf(a);
-				var indexB:int = keyList.indexOf(b);
-				var needUpdate:Boolean = false;
-				if(indexA >= 0){
-					a = valList[indexA];
-					needUpdate = true;
-				}
-				if(indexB >= 0){
-					b = valList[indexB];
-					needUpdate = true;
-				}
-				if(needUpdate){
-					valList[i] = a + ":" + b;
-				}else{
-					removeAt(i);
-				}
+			var key:String = keyList[i];
+			var index:int = valList[i];
+			var a:String = key.slice(0, index);
+			var b:String = key.slice(index+1);
+			var indexA:int = keyList.indexOf(a);
+			var indexB:int = keyList.indexOf(b);
+			var needUpdate:Boolean = false;
+			if(indexA >= 0){
+				a = valList[indexA];
+				needUpdate = true;
+			}
+			if(indexB >= 0){
+				b = valList[indexB];
+				needUpdate = true;
+			}
+			if(needUpdate){
+				valList[i] = a + ":" + b;
+			}else{
+				removeAt(i);
 			}
 		}
 		

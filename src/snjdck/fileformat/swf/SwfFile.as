@@ -1,17 +1,15 @@
 package snjdck.fileformat.swf
 {
+	import flash.debugger.enterDebugger;
 	import flash.factory.newBuffer;
 	import flash.utils.ByteArray;
 	
-	import array.has;
-	import array.insert;
 	import array.or;
 	import array.pushIfNotHas;
 	import array.sub;
 	
 	import snjdck.fileformat.swf.enum.SwfTagType;
 	import snjdck.fileformat.swf.utils.RawDict;
-	import snjdck.fileformat.swf.utils.generateVariableName;
 	
 	import stream.readString;
 
@@ -170,23 +168,7 @@ package snjdck.fileformat.swf
 			finalList = array.sub(finalList, symbolNames);
 			var mixList:Array = array.or(strList, symbolNames);
 			
-			for each(var str:String in finalList){
-				var index:int = str.lastIndexOf(":");
-				if(index >= 0){
-					var a:String = str.slice(0, index);
-					var b:String = str.slice(index+1);
-					var hasA:Boolean = array.has(finalList, a);
-					var hasB:Boolean = array.has(finalList, b);
-					if(hasA || hasB){
-						rawDict.addData(str, [a, b]);
-					}
-					continue;
-				}
-				var mixStr:String = generateVariableName(str.length, mixList, true);
-				rawDict.addData(str, mixStr);
-			}
-			
-			rawDict.mixPackage();
+			rawDict.mixStr(finalList, mixList);
 			
 			for each(abcFile in abcFileList){
 				abcFile.mixCode(rawDict);
@@ -197,17 +179,10 @@ package snjdck.fileformat.swf
 			trace(whiteList.join("\n"));
 			trace("---finalList------",finalList.length);
 			trace(finalList.join("\n"));
+			trace(finalList.indexOf("stopIcon"));
+			enterDebugger();
 			trace("---finalDict------");
 			trace(rawDict);
-		}
-		
-		private function isFullClassName(clsName:String):Boolean
-		{
-			var index:int = clsName.lastIndexOf(":");
-			if(index < 0){
-				return false;
-			}
-			return true;
 		}
 		/*
 		public function addTelemetryTag():void

@@ -80,25 +80,34 @@ package snjdck.fileformat.abc.io
 			readS32();//name index
 			const flags:uint = data.readUnsignedByte();
 			if(flags & Constants.HAS_OPTIONAL){//参数默认值
-				repeatCall(readDefaultParam);
+				repeatCall(readDefaultParam2);
 			}
 			if(flags & Constants.HAS_ParamNames){//参数名称
 				callTimes(param_count, readParamName);
 			}
 		}
 		
-		private function readDefaultParam():void
+		private function readDefaultParam2():void
 		{
-			var index:int = readS32();//值在常量池中的索引
+			readDefaultParam(readS32());
+		}
+		
+		public function readDefaultParam(valueIndex:int):void
+		{
 			var valueType:int = data.readUnsignedByte();
 			if(valueType == Constants.CONSTANT_Utf8){
-				blackSet.addIndex(index);
+				blackSet.addIndex(valueIndex);
 			}
 		}
 		
 		private function readParamName():void
 		{
 			whiteSet.addIndex(readS32());
+		}
+		
+		public function readExceptionList():void
+		{
+			callTimes(readS32() * 5, readS32);
 		}
 		
 		public function readS32List():void
@@ -123,7 +132,7 @@ package snjdck.fileformat.abc.io
 					blackSet.addIndex(instruction.getImmAt(0));
 				}
 			}
-			assert(data.position == endPos, "parse op error!");
+			assert(data.position == endPos);
 		}
 		
 		static private const instruction:Instruction = new Instruction();

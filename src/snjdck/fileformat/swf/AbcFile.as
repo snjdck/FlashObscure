@@ -1,5 +1,6 @@
 package snjdck.fileformat.swf
 {
+	import flash.debugger.enterDebugger;
 	import flash.utils.ByteArray;
 	
 	import array.pushIfNotHas;
@@ -12,10 +13,10 @@ package snjdck.fileformat.swf
 	import snjdck.fileformat.swf.utils.RawDict;
 
 	/**
-	 * white:exception var name, etc
 	 * black:class or instance var default value
+	 * white:trait
 	 */
-	internal class AbcFile
+	final public class AbcFile
 	{
 		private const strList:Array = ["*"];
 		private const nsList:Array = [null];
@@ -56,7 +57,7 @@ package snjdck.fileformat.swf
 			skip(readMethodIndexAndTrait);//ScriptInfo
 			skip(readMethodBodyInfo);
 			
-			assert(source.bytesAvailable == 0, "parse abc error!");
+			assert(source.bytesAvailable == 0);
 		}
 		
 		private function readString():void
@@ -77,23 +78,23 @@ package snjdck.fileformat.swf
 			switch(source.readUnsignedByte()){
 				case Constants.CONSTANT_Qname:
 				case Constants.CONSTANT_QnameA://ns + utf_name
-					multiName = [readInt(), readInt()];
+					multiName = [reader.readS32(), reader.readS32()];
 					break;
 				case Constants.CONSTANT_Multiname:
 				case Constants.CONSTANT_MultinameA://utf_name + ns_set
-					readInt();
-					readInt();
+					reader.readS32();
+					reader.readS32();
 					break;
 				case Constants.CONSTANT_RTQname:
 				case Constants.CONSTANT_RTQnameA:
-					readInt();//utf_name
+					reader.readS32();//utf_name
 					break;
 				case Constants.CONSTANT_MultinameL:
 				case Constants.CONSTANT_MultinameLA:
-					readInt();//ns_set
+					reader.readS32();//ns_set
 					break;
 				case Constants.CONSTANT_TypeName:
-					readInt();
+					reader.readS32();
 					reader.readS32List();
 					break;
 				case Constants.CONSTANT_RTQnameL:
@@ -106,6 +107,10 @@ package snjdck.fileformat.swf
 		private function printMultiName(index:int):void
 		{
 			var info:Array = multiNameList[index];
+			if(null == info){
+				trace("no multi name");
+				return;
+			}
 			var ns:Array = nsList[info[0]];
 			
 			trace("++++++++++++++++++++++++++++++++++++++++",ns[0],strIndexBlackList.getValue(ns[1]),strIndexBlackList.getValue(info[1]));
@@ -133,30 +138,24 @@ package snjdck.fileformat.swf
 		{
 			callTimes(5, reader.readS32);
 			reader.readInstructionList();
-			skip(readExceptionInfo);
+			reader.readExceptionList();
 			skip(readTraitInfo);
-		}
-		
-		private function readExceptionInfo():void{
-			callTimes(4, reader.readS32);
-			addMultiNameToWhiteList(reader.readS32());
 		}
 		
 		private function readTraitInfo():void
 		{
-			const multiNameIndex:uint = readInt();
+			const multiNameIndex:uint = reader.readS32();
 			const kind:uint = source.readUnsignedByte();
 			reader.readS32();//slot_id
-			reader.readS32();//属性类型
+			var propTypeIndex:int = reader.readS32();
 			switch(kind & 0xF){
 				case Constants.TRAIT_Slot:
 				case Constants.TRAIT_Const:
 					var valueIndex:int = reader.readS32();
 					if(valueIndex != 0){
-						var valueType:int = source.readUnsignedByte();
-						if(valueType == Constants.CONSTANT_Utf8){
-							strIndexBlackList.addIndex(valueIndex);
-						}
+						reader.readDefaultParam(valueIndex);
+					}else if(isClassType(propTypeIndex)){
+						strIndexBlackList.addIndex(multiNameList[multiNameIndex][1]);
 					}
 			}
 			if(kind & 0x40){//metadata
@@ -173,18 +172,12 @@ package snjdck.fileformat.swf
 			}
 		}
 		
-		private function readInt():uint
-		{
-			return reader.readS32();
-		}
-		
 		public function collect(all:Array, white:Array, black:Array):void
 		{
-			var strIndex:uint;
-			var str:String;
-			for each(str in strList){
+			for each(var str:String in strList){
 				pushIfNotHas(all, str);
 			}
+			var strIndex:int;
 			for each(strIndex in strIndexWhiteList.indexList){
 				pushIfNotHas(white, strList[strIndex]);
 			}
@@ -195,23 +188,18 @@ package snjdck.fileformat.swf
 		
 		public function mixCode(nameDict:RawDict):void
 		{
-			var count:int = strList.length;
-			for(var strIndex:int=0; strIndex<count; ++strIndex){
-				var str:String = strList[strIndex];
-				var mixedStr:String = nameDict.getValue(str);
-				if(mixedStr != null){
-					mixStr(strIndex, mixedStr);
+			for(var strIndex:int=strList.length-1; strIndex > 0; --strIndex)
+			{
+				var mixedStr:String = nameDict.getValue(strList[strIndex]);
+				if(null == mixedStr){
+					continue;
 				}
+				var start:int = shaokai[strIndex][0];
+				var nChar:int = shaokai[strIndex][1];
+				source.position = start;
+				source.writeUTFBytes(mixedStr);
+				assert(source.position == start + nChar, strList[strIndex]);
 			}
-		}
-		
-		private function mixStr(strIndex:uint, mixedStr:String):void
-		{
-			var start:int = shaokai[strIndex][0];
-			var nChar:int = shaokai[strIndex][1];
-			source.position = start;
-			source.writeUTFBytes(mixedStr);
-			assert(source.position == start + nChar, strList[strIndex]);
 		}
 		
 		private function addMultiNameToWhiteList(nameIndex:int):void
@@ -221,17 +209,11 @@ package snjdck.fileformat.swf
 			strIndexWhiteList.addIndex(ns[1]);
 			strIndexWhiteList.addIndex(info[1]);
 		}
-		/*
-		private function addNotParsedStrIndex(strIndex:uint, flag:String):void
+		
+		private function isClassType(propTypeIndex:int):Boolean
 		{
-			var str:String = strList[strIndex];
-			var index:int = str.lastIndexOf(flag);
-			if(index != -1){
-				strIndexBlackList.addStr(str.slice(0, index));
-				strIndexBlackList.addStr(str.slice(index+1));
-			}
-			strIndexBlackList.addIndex(strIndex);
+			var info:Array = multiNameList[propTypeIndex];
+			return info != null && strList[info[1]] == "Class";
 		}
-		*/
 	}
 }
