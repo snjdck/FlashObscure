@@ -9,13 +9,13 @@ package snjdck.fileformat.abc.enum {
 public final class Constants {
 
 // method flags
-public static const NEED_ARGUMENTS:int =        0x01
-public static const NEED_ACTIVATION:int =   0x02
-public static const NEED_REST:int =             0x04
+//public static const NEED_ARGUMENTS:int =        0x01
+//public static const NEED_ACTIVATION:int =   0x02
+//public static const NEED_REST:int =             0x04
 public static const HAS_OPTIONAL:int =      0x08
-public static const IGNORE_REST:int =       0x10
-public static const NATIVE:int =                0x20
-public static const SET_DXNS:int =          0x40
+//public static const IGNORE_REST:int =       0x10
+//public static const NATIVE:int =                0x20
+//public static const SET_DXNS:int =          0x40
 public static const HAS_ParamNames:int =      0x80
 
 public static const CONSTANT_Utf8                   :int = 0x01
@@ -56,11 +56,11 @@ public static const constantKinds:Array = [ "0", "utf8", "2",
 ]
 */
 public static const TRAIT_Slot      :int = 0x00
-public static const TRAIT_Method        :int = 0x01
-public static const TRAIT_Getter        :int = 0x02
-public static const TRAIT_Setter        :int = 0x03
-public static const TRAIT_Class     :int = 0x04
-public static const TRAIT_Function  :int = 0x05
+//public static const TRAIT_Method        :int = 0x01
+//public static const TRAIT_Getter        :int = 0x02
+//public static const TRAIT_Setter        :int = 0x03
+//public static const TRAIT_Class     :int = 0x04
+//public static const TRAIT_Function  :int = 0x05
 public static const TRAIT_Const     :int = 0x06
 /*
 public static const traitKinds:Array = [
@@ -533,11 +533,12 @@ public static const singleS24Imm : Array = [ OP_jump, OP_iftrue, OP_iffalse, OP_
   OP_ifnlt, OP_ifstricteq, OP_ifstrictne ]
 
 public static const singleByteImm : Array = [ OP_pushbyte, OP_getscopeobject ]
-
+/*
 public static const hasName : Array = [ OP_getsuper, OP_setsuper, OP_callsuper, OP_callproperty, OP_constructprop,
   OP_constructprop, OP_callsupervoid, OP_callpropvoid, OP_getdescendants, OP_findpropstrict, OP_findproperty,
   OP_finddef, OP_getlex, OP_setproperty, OP_getproperty, OP_initproperty, OP_deleteproperty, OP_coerce,
   OP_astype, OP_istype ]
+//*/
 
 }
 }

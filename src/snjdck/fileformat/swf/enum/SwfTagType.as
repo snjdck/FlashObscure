@@ -2,6 +2,7 @@ package snjdck.fileformat.swf.enum
 {
 	final public class SwfTagType
 	{
+		/*
 		static public const End:uint = 0;
 		static public const ShowFrame:uint = 1;
 		static public const DefineShape:uint = 2;
@@ -70,15 +71,17 @@ package snjdck.fileformat.swf.enum
 		static public const FileAttributes:uint = 69;
 		static public const PlaceObject3:uint = 70;
 		static public const ImportAssets2:uint = 71;
+		//*/
 		static public const DoABC:uint = 72;
-		static public const DefineFontAlignZones:uint = 73;
-		static public const CSMSettings:uint = 74;
-		static public const DefineFont3:uint = 75;
+//		static public const DefineFontAlignZones:uint = 73;
+//		static public const CSMSettings:uint = 74;
+//		static public const DefineFont3:uint = 75;
 		static public const SymbolClass:uint = 76;
-		static public const Metadata:uint = 77;
-		static public const DefineScalingGrid:uint = 78;
-		static public const DefineDeviceVideo:uint = 79;
+//		static public const Metadata:uint = 77;
+//		static public const DefineScalingGrid:uint = 78;
+//		static public const DefineDeviceVideo:uint = 79;
 		static public const DoABC2:uint = 82;
+		/*
 		static public const DefineShape4:uint = 83;
 		static public const DefineMorphShape2:uint = 84;
 		static public const PlaceImagePrivate:uint = 85;
@@ -89,5 +92,6 @@ package snjdck.fileformat.swf.enum
 		static public const DefineBitsJPEG64:uint = 90;
 		static public const DefineFont4:uint = 91;
 		static public const EnableTelemetry:uint = 93;
+		//*/
 	}
 }

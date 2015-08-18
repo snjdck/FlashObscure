@@ -1,13 +1,13 @@
 package snjdck.fileformat.swf
 {
-	import flash.factory.newBuffer;
 	import flash.utils.ByteArray;
 	
 	final internal class SwfTag
 	{
 		public var type:uint;
 		public var size:uint;
-		public var data:ByteArray;
+		public var dataBegin:int;
+		public var dataEnd:int;
 		
 		public function SwfTag()
 		{
@@ -21,12 +21,10 @@ package snjdck.fileformat.swf
 			if(0x3F == size){
 				size = bin.readInt();
 			}
-			if(size > 0){
-				data = newBuffer();
-				bin.readBytes(data, 0, size);
-			}
+			dataBegin = bin.position;
+			dataEnd = dataBegin + size;
 		}
-		
+		/*
 		public function write(bin:ByteArray):void
 		{
 			var flag:uint = type << 6;
@@ -42,5 +40,6 @@ package snjdck.fileformat.swf
 				bin.writeBytes(data, 0, size);
 			}
 		}
+		//*/
 	}
 }

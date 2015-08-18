@@ -1,6 +1,5 @@
 package snjdck.fileformat.swf
 {
-	import flash.debugger.enterDebugger;
 	import flash.factory.newBuffer;
 	import flash.utils.ByteArray;
 	
@@ -27,12 +26,10 @@ package snjdck.fileformat.swf
 			return list;
 		}
 		static private const KeyWords:Array = InitKeyWords(new CLS_KEYWORDS());
+		static private const tag:SwfTag = new SwfTag();
 		
-		private var isCompressed:Boolean;
-		private var version:uint;
-		private var bodyHead:ByteArray;
-		
-		private var tagList:Array = [];
+		private var fileHead:ByteArray;
+		private var fileBytes:ByteArray;
 		private var abcFileList:Array = [];
 		
 		private var symbolNames:Array;
@@ -42,27 +39,34 @@ package snjdck.fileformat.swf
 			symbolNames = KeyWords.slice();
 		}
 		
+		public function write(output:ByteArray):void
+		{
+			if(fileHead[0] != 0x46){
+				fileBytes.compress();
+			}
+			output.writeBytes(fileHead);
+			output.writeBytes(fileBytes);
+		}
+		
 		public function read(file:ByteArray):void
 		{
-			var sign:String = file.readUTFBytes(3);
-			version = file.readUnsignedByte();
-			const fileSize:uint = file.readUnsignedInt();//解压后大小,包含头部8字节
-			
+			fileHead = newBuffer();
 			const temp:ByteArray = newBuffer();
-			bodyHead = newBuffer();
 			
-			switch(sign.charAt(0)){
-				case "C":
-					isCompressed = true;
+			file.readBytes(fileHead, 0, 8);
+			fileHead.position = 4;
+			var fileSize:uint = fileHead.readUnsignedInt();//解压后大小,包含头部8字节
+			
+			switch(fileHead[0]){
+				case 0x46:
+					temp.writeBytes(file, 8);
+					break;
+				case 0x43:
 					temp.writeBytes(file, 8);
 					temp.uncompress();
 					break;
-				case "F":
-					isCompressed = false;
-					temp.writeBytes(file, 8);
-					break;
-				case "Z":
-					isCompressed = true;
+				case 0x5A:
+					fileHead[0] = 0x43;
 					temp.writeBytes(file, 12, 5);
 					temp.writeUnsignedInt(fileSize-8);
 					temp.writeUnsignedInt(0);
@@ -74,74 +78,43 @@ package snjdck.fileformat.swf
 			}
 			
 			file.clear();
-			file = temp;
-			file.position = 0;
+			fileBytes = temp;
+			fileBytes.position = 0;
 			
-			const nBit:int = file[0] >>> 3;
-			file.readBytes(bodyHead, 0, Math.ceil((nBit*4+5)/8)+4);
+			const nBit:int = fileBytes[0] >>> 3;
+			fileBytes.position += Math.ceil((nBit*4+5)/8) + 4;
 			
-			parseTags(file);
-		}
-		
-		public function write(output:ByteArray):void
-		{
-			var body:ByteArray = newBuffer();
-			body.writeBytes(bodyHead);
-			for each(var tag:SwfTag in tagList){
-				tag.write(body);
-			}
-			
-			output.writeUTFBytes(isCompressed ? "CWS" : "FWS");
-			output.writeByte(version);
-			output.writeUnsignedInt(body.length + 8);
-			if(isCompressed){
-				body.compress();
-			}
-			output.writeBytes(body);
-		}
-		
-		private function parseTags(bin:ByteArray):void
-		{
-			while(bin.bytesAvailable > 0){
-				var tag:SwfTag = new SwfTag();
-				tag.read(bin);
+			while(fileBytes.bytesAvailable > 0){
+				tag.read(fileBytes);
 				parseTag(tag);
+				assert(fileBytes.position == tag.dataEnd);
 			}
 		}
 		
 		private function parseTag(tag:SwfTag):void
 		{
 			switch(tag.type){
-				case SwfTagType.Metadata:
-				case SwfTagType.ProductInfo:
-				case SwfTagType.EnableDebugger:
-				case SwfTagType.EnableDebugger2:
-				case SwfTagType.DebugID:
-				case SwfTagType.Protect:
-					return;//ignore
-				case SwfTagType.FileAttributes:
-					tag.data[0] &= 0xEF;//hasMetadata = false
-					break;
 				case SwfTagType.SymbolClass:
-					parseSymbolClass(tag.data);
+					parseSymbolClass();
 					break;
 				case SwfTagType.DoABC2:
-					tag.data.readUnsignedInt();//LazyInitializeFlag
-					readString(tag.data);//abc file name
+					fileBytes.readUnsignedInt();//LazyInitializeFlag
+					readString(fileBytes);//abc file name
 					//fall through
 				case SwfTagType.DoABC:
-					abcFileList.push(new AbcFile(tag.data));
+					abcFileList.push(new AbcFile(fileBytes));
 					break;
+				default:
+					fileBytes.position = tag.dataEnd;
 			}
-			tagList.push(tag);
 		}
 		
-		private function parseSymbolClass(source:ByteArray):void
+		private function parseSymbolClass():void
 		{
-			var count:int = source.readUnsignedShort();
+			var count:int = fileBytes.readUnsignedShort();
 			while(count-- > 0){
-				source.readUnsignedShort();
-				var clsName:String = readString(source);
+				fileBytes.readUnsignedShort();
+				var clsName:String = readString(fileBytes);
 				var index:int = clsName.lastIndexOf(".");
 				if(index != -1){
 					pushIfNotHas(symbolNames, clsName.slice(0, index));
@@ -173,43 +146,13 @@ package snjdck.fileformat.swf
 			for each(abcFile in abcFileList){
 				abcFile.mixCode(rawDict);
 			}
-			trace("---blackList------",blackList.length);
-			trace(blackList.join("\n"));
-			trace("---whiteList------",whiteList.length);
-			trace(whiteList.join("\n"));
-			trace("---finalList------",finalList.length);
-			trace(finalList.join("\n"));
-			trace(finalList.indexOf("stopIcon"));
-			enterDebugger();
+			strList = array.sub(whiteList, finalList);
+			trace("---subList------",strList.length);
+			for each(var str:String in strList){
+				trace(array.has(blackList, str), array.has(symbolNames, str), str);
+			}
 			trace("---finalDict------");
 			trace(rawDict);
 		}
-		/*
-		public function addTelemetryTag():void
-		{
-			const index:int = getTagIndex(SwfTagType.FileAttributes);
-			if(-1 == index){
-				return;
-			}
-			
-			var tag:SwfTag = new SwfTag();
-			tag.type = SwfTagType.EnableTelemetry;
-			tag.size = 2;
-			tag.data = newBuffer(null, 2);
-			
-			insert(tagList, index+1, tag);
-		}
-		
-		private function getTagIndex(tagType:uint):int
-		{
-			for(var i:int=0; i<tagList.length; i++){
-				var tag:SwfTag = tagList[i];
-				if(tag.type == tagType){
-					return i;
-				}
-			}
-			return -1;
-		}
-		//*/
 	}
 }

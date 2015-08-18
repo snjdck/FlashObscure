@@ -1,6 +1,5 @@
 package snjdck.fileformat.swf
 {
-	import flash.debugger.enterDebugger;
 	import flash.utils.ByteArray;
 	
 	import array.pushIfNotHas;
@@ -56,8 +55,6 @@ package snjdck.fileformat.swf
 			callTimes(clsCount, readMethodIndexAndTrait);//ClassInfo
 			skip(readMethodIndexAndTrait);//ScriptInfo
 			skip(readMethodBodyInfo);
-			
-			assert(source.bytesAvailable == 0);
 		}
 		
 		private function readString():void
@@ -154,9 +151,9 @@ package snjdck.fileformat.swf
 					var valueIndex:int = reader.readS32();
 					if(valueIndex != 0){
 						reader.readDefaultParam(valueIndex);
-					}else if(isClassType(propTypeIndex)){
+					}/*else if(isClassType(propTypeIndex)){
 						strIndexBlackList.addIndex(multiNameList[multiNameIndex][1]);
-					}
+					}*/
 			}
 			if(kind & 0x40){//metadata
 				reader.readS32List();
@@ -209,11 +206,12 @@ package snjdck.fileformat.swf
 			strIndexWhiteList.addIndex(ns[1]);
 			strIndexWhiteList.addIndex(info[1]);
 		}
-		
+		/*
 		private function isClassType(propTypeIndex:int):Boolean
 		{
 			var info:Array = multiNameList[propTypeIndex];
 			return info != null && strList[info[1]] == "Class";
 		}
+		//*/
 	}
 }
