@@ -3,6 +3,7 @@ package snjdck.fileformat.swf
 	import flash.factory.newBuffer;
 	import flash.utils.ByteArray;
 	
+	import array.has;
 	import array.or;
 	import array.pushIfNotHas;
 	import array.sub;
@@ -11,19 +12,16 @@ package snjdck.fileformat.swf
 	import snjdck.fileformat.swf.utils.RawDict;
 	
 	import stream.readString;
+	
+	import string.trim;
 
 	public class SwfFile
 	{
-		[Embed("keywords.bin", mimeType="application/octet-stream")]
+		[Embed("keywords.txt", mimeType="application/octet-stream")]
 		static private const CLS_KEYWORDS:Class;
 		static private function InitKeyWords(bin:ByteArray):Array
 		{
-			bin.uncompress("lzma");
-			var list:Array = [];
-			while(bin.bytesAvailable > 0){
-				list.push(bin.readUTF());
-			}
-			return list;
+			return trim(bin.toString()).split(/\s+/);
 		}
 		static private const KeyWords:Array = InitKeyWords(new CLS_KEYWORDS());
 		static private const tag:SwfTag = new SwfTag();
