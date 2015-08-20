@@ -141,7 +141,7 @@ package snjdck.fileformat.swf
 		
 		private function readTraitInfo():void
 		{
-			const multiNameIndex:uint = reader.readS32();
+			const multiNameIndex:int = reader.readS32();
 			const kind:uint = source.readUnsignedByte();
 			reader.readS32();//slot_id
 			var propTypeIndex:int = reader.readS32();
@@ -151,9 +151,9 @@ package snjdck.fileformat.swf
 					var valueIndex:int = reader.readS32();
 					if(valueIndex != 0){
 						reader.readDefaultParam(valueIndex);
-					}/*else if(isClassType(propTypeIndex)){
+					}else if(isClassType(propTypeIndex)){
 						strIndexBlackList.addIndex(multiNameList[multiNameIndex][1]);
-					}*/
+					}
 			}
 			if(kind & 0x40){//metadata
 				reader.readS32List();
@@ -206,12 +206,11 @@ package snjdck.fileformat.swf
 			strIndexWhiteList.addIndex(ns[1]);
 			strIndexWhiteList.addIndex(info[1]);
 		}
-		/*
+		
 		private function isClassType(propTypeIndex:int):Boolean
 		{
 			var info:Array = multiNameList[propTypeIndex];
 			return info != null && strList[info[1]] == "Class";
 		}
-		//*/
 	}
 }

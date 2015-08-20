@@ -41,6 +41,9 @@ flash.trace
 flash.ui
 flash.utils
 flash.xml
+mx.core
+
+mx_internal
 
 hasOwnProperty
 isPrototypeOf
