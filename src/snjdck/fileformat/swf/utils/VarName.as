@@ -1,5 +1,7 @@
 package snjdck.fileformat.swf.utils
 {
+	import flash.utils.getTimer;
+	
 	import array.has;
 	
 	import stdlib.random.RandomUtil;
@@ -19,9 +21,11 @@ package snjdck.fileformat.swf.utils
 		];
 		static private const charCodeList:Array = [];
 		
-		static public function Gen(nChar:int, excludeList:Array=null, addResultToExcludeList:Boolean=false):String
+		static public function Gen(source:String, excludeList:Array=null, addResultToExcludeList:Boolean=false):String
 		{
+			var nChar:int = source.length;
 			assert(nChar > 0);
+			var timestamp:int = getTimer();
 			var result:String;
 			do{
 				charCodeList.length = 0;
@@ -30,6 +34,9 @@ package snjdck.fileformat.swf.utils
 					charCodeList.push(RandomUtil.getArrayItem(Var2));
 				}
 				result = String.fromCharCode.apply(null, charCodeList);
+				if(getTimer() - timestamp >= 1000){
+					return source;
+				}
 			}while(excludeList && has(excludeList, result));
 			if(excludeList && addResultToExcludeList){
 				excludeList.push(result);

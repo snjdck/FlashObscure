@@ -30,6 +30,9 @@ package snjdck.fileformat.swf.utils
 		
 		public function addData(key:Object, value:Object):void
 		{
+			if(key === value){
+				return;
+			}
 			keyList[count] = key;
 			valList[count] = value;
 			++count;
@@ -49,7 +52,7 @@ package snjdck.fileformat.swf.utils
 				if(index >= 0){
 					addData(str, index);
 				}else{
-					addData(str, VarName.Gen(str.length, usedNameList, true));
+					addData(str, VarName.Gen(str, usedNameList, true));
 				}
 			}
 			for(var i:int=count-1; i>=0; --i){
