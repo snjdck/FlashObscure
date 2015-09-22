@@ -10,6 +10,8 @@ package snjdck.fileformat.swf
 	import snjdck.fileformat.abc.enum.Constants;
 	import snjdck.fileformat.abc.io.Reader;
 	import snjdck.fileformat.swf.utils.RawDict;
+	
+	import stdlib.constant.CharSet;
 
 	/**
 	 * black:class or instance var default value
@@ -194,7 +196,7 @@ package snjdck.fileformat.swf
 				var start:int = shaokai[strIndex][0];
 				var nChar:int = shaokai[strIndex][1];
 				source.position = start;
-				source.writeUTFBytes(mixedStr);
+				source.writeMultiByte(mixedStr, CharSet.ASCII);
 				assert(source.position == start + nChar, strList[strIndex]);
 			}
 		}
