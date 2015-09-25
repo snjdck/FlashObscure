@@ -11,6 +11,8 @@ package snjdck.fileformat.swf
 	import snjdck.fileformat.swf.enum.SwfTagType;
 	import snjdck.fileformat.swf.utils.RawDict;
 	
+	import stdlib.constant.CharSet;
+	
 	import stream.readString;
 	
 	import string.trim;
@@ -29,6 +31,7 @@ package snjdck.fileformat.swf
 		private var fileHead:ByteArray;
 		private var fileBytes:ByteArray;
 		private var abcFileList:Array = [];
+		private var symbolClsDict:Object = {};
 		
 		private var symbolNames:Array;
 		
@@ -112,13 +115,9 @@ package snjdck.fileformat.swf
 			var count:int = fileBytes.readUnsignedShort();
 			while(count-- > 0){
 				fileBytes.readUnsignedShort();
+				var offset:uint = fileBytes.position;
 				var clsName:String = readString(fileBytes);
-				var index:int = clsName.lastIndexOf(".");
-				if(index != -1){
-					pushIfNotHas(symbolNames, clsName.slice(0, index));
-					pushIfNotHas(symbolNames, clsName.slice(index+1));
-				}
-				pushIfNotHas(symbolNames, clsName);
+				symbolClsDict[clsName] = offset;
 			}
 		}
 		
@@ -140,6 +139,15 @@ package snjdck.fileformat.swf
 			var mixList:Array = array.or(strList, symbolNames);
 			
 			rawDict.mixStr(finalList, mixList);
+			
+			for(var key:String in symbolClsDict){
+				var mixedStr:String = rawDict.getValue(key);
+				if(mixedStr != null){
+					fileBytes.position = symbolClsDict[key];
+					fileBytes.writeMultiByte(mixedStr, CharSet.ASCII);
+					assert(fileBytes.readUnsignedByte() == 0);
+				}
+			}
 			
 			for each(abcFile in abcFileList){
 				abcFile.mixCode(rawDict);
