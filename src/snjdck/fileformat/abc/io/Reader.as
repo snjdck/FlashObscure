@@ -14,9 +14,33 @@ package snjdck.fileformat.abc.io
 	 */
 	final public class Reader
 	{
+		static public function ReadU29(data:ByteArray):int
+		{
+			var result:int = 0;
+			var count:int = 0;
+			for(;;){
+				var byte:uint = data.readUnsignedByte();
+				result |= byte & 0x7F;
+				if((byte & 0x80) == 0){
+					return result;
+				}
+				if(++count < 3){
+					result <<= 7;
+				}else{
+					result <<= 8;
+					break;
+				}
+			}
+			result |= data.readUnsignedByte();
+			if(result & 10000000){
+				result = -(~(result-1) & 0x1FFFFFFF);
+			}
+			return result;
+		}
+		
 		static public function ReadS32(data:ByteArray):int
 		{
-			var result:uint = 0;
+			var result:int = 0;
 			var count:int = 0;
 			do{
 				var byte:uint = data.readUnsignedByte();
