@@ -146,15 +146,13 @@ package snjdck.fileformat.swf
 			const multiNameIndex:int = reader.readS32();
 			const kind:uint = source.readUnsignedByte();
 			reader.readS32();//slot_id
-			var propTypeIndex:int = reader.readS32();
+			reader.readS32();//propTypeIndex
 			switch(kind & 0xF){
 				case Constants.TRAIT_Slot:
 				case Constants.TRAIT_Const:
 					var valueIndex:int = reader.readS32();
 					if(valueIndex != 0){
 						reader.readDefaultParam(valueIndex);
-					}else if(isClassType(propTypeIndex)){
-						strIndexBlackList.addIndex(multiNameList[multiNameIndex][1]);
 					}
 			}
 			if(kind & 0x40){//metadata
@@ -197,7 +195,7 @@ package snjdck.fileformat.swf
 				var nChar:int = shaokai[strIndex][1];
 				source.position = start;
 				source.writeMultiByte(mixedStr, CharSet.ASCII);
-				assert(source.position == start + nChar, strList[strIndex]);
+				assert(source.position <= start + nChar, strList[strIndex]);
 			}
 		}
 		
@@ -207,12 +205,6 @@ package snjdck.fileformat.swf
 			var ns:Array = nsList[info[0]];
 			strIndexWhiteList.addIndex(ns[1]);
 			strIndexWhiteList.addIndex(info[1]);
-		}
-		
-		private function isClassType(propTypeIndex:int):Boolean
-		{
-			var info:Array = multiNameList[propTypeIndex];
-			return info != null && strList[info[1]] == "Class";
 		}
 	}
 }
